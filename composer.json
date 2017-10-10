@@ -1,0 +1,7 @@
+{
+  "description": "A Library for Firebase Backend Services",
+  "type": "firebase-package",
+  "require": {
+  },
+  "name": "miegli/firebase"
+}
