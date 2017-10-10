@@ -27,6 +27,8 @@
 
 'use strict';
 
+const uuidv1 = require('uuid/v1');
+
 class firebaseFunctionsConnector {
 
 
@@ -72,16 +74,18 @@ class firebaseFunctionsConnector {
      *
      * @param string userid
      * @param string title
+     * @param integer time
      * @return void
      *
      */
-    message(userid, title) {
+    message(userid, title, time) {
 
         var self = this;
-        this.db.ref('user/' + userid + '/notification').set(title);
+        var u = uuidv1();
+        this.db.ref('user/' + userid + '/notification/' + u).set(title);
         setTimeout(function () {
-            self.db.ref('user/' + userid + '/notification').remove();
-        }, 3000);
+            self.db.ref('user/' + userid + '/notification/' + u).remove();
+        }, time ? time : 3000);
 
     }
 
