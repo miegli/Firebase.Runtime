@@ -102,16 +102,17 @@ exports.fetchObjectFromFirestore = functions.firestore.document('user/{userid}/s
  */
 exports.saveObjectFromFirestore = functions.firestore.document('user/{userid}/storage/{object}/{objectid}/saved').onWrite(event => {
 
-
-    const date = new Date();
-    admin.database().ref('_events/' + uuidV1()).set({
-        'date': date.getTime(),
-        'object': event.params.object,
-        'objectid': event.params.objectid,
-        'userid': event.params.userid,
-        'function': 'saveObject',
-        'source': 'firestore'
-    });
+    if (event.data && event.data.data() && Object.keys(event.data.data()).length) {
+        const date = new Date();
+        admin.database().ref('_events/' + uuidV1()).set({
+            'date': date.getTime(),
+            'object': event.params.object,
+            'objectid': event.params.objectid,
+            'userid': event.params.userid,
+            'function': 'saveObject',
+            'source': 'firestore'
+        });
+    }
 
 
 });
