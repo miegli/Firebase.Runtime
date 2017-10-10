@@ -39,7 +39,7 @@ admin.initializeApp(functions.config().firebase);
  * Emit event "fetchObject" on firebase database
  *
  */
-exports.fetchObjectDatabase = functions.database.ref('user/{userid}/storage/{object}/{objectid}/version').onWrite(event => {
+exports.fetchObjectFromDatabase = functions.database.ref('user/{userid}/storage/{object}/{objectid}/version').onWrite(event => {
     const date = new Date();
 
     admin.database().ref('_events/' + uuidV1()).set({
@@ -57,7 +57,7 @@ exports.fetchObjectDatabase = functions.database.ref('user/{userid}/storage/{obj
  * Emmit event "saveObject" on firebase database
  *
  */
-exports.saveObjectDatabase = functions.database.ref('user/{userid}/storage/{object}/{objectid}/saved').onWrite(event => {
+exports.saveObjectFromDatabase = functions.database.ref('user/{userid}/storage/{object}/{objectid}/saved').onWrite(event => {
 
     if (event.data.val()) {
         admin.database().ref('user/' + event.params.userid + '/storage/' + event.params.object + '/' + event.params.objectid + '/data').once('value', function (data) {
@@ -81,7 +81,7 @@ exports.saveObjectDatabase = functions.database.ref('user/{userid}/storage/{obje
  * Emit event "fetchObject" on firebase firestore
  *
  */
-exports.fetchObjectFirestore = functions.firestore.document('user/{userid}/storage/{object}/{objectid}/version').onWrite(event => {
+exports.fetchObjectFromFirestore = functions.firestore.document('user/{userid}/storage/{object}/{objectid}/version').onWrite(event => {
     const date = new Date();
 
     admin.database().ref('_events/' + uuidV1()).set({
