@@ -36,41 +36,82 @@ const uuidV1 = require('uuid/v1');
 admin.initializeApp(functions.config().firebase);
 
 /**
- * Emit event "fetchObject"
+ * Emit event "fetchObject" on firebase database
  *
  */
-exports.fetchObject = functions.database.ref('user/{userid}/storage/{object}/{objectid}/version').onWrite(event => {
+exports.fetchObjectDatabase = functions.database.ref('user/{userid}/storage/{object}/{objectid}/version').onWrite(event => {
     const date = new Date();
 
-admin.database().ref('_events/' + uuidV1()).set({
-    'date': date.getTime(),
-    'object': event.params.object,
-    'objectid': event.params.objectid,
-    'userid': event.params.userid,
-    'function': 'fetchObject'
-});
+    admin.database().ref('_events/' + uuidV1()).set({
+        'date': date.getTime(),
+        'object': event.params.object,
+        'objectid': event.params.objectid,
+        'userid': event.params.userid,
+        'function': 'fetchObject',
+        'source': 'database'
+    });
 
 });
 
 /**
- * Emmit event "saveObject"
+ * Emmit event "saveObject" on firebase database
  *
  */
-exports.saveObject = functions.database.ref('user/{userid}/storage/{object}/{objectid}/saved').onWrite(event => {
+exports.saveObjectDatabase = functions.database.ref('user/{userid}/storage/{object}/{objectid}/saved').onWrite(event => {
 
     if (event.data.val()) {
-    admin.database().ref('user/' + event.params.userid + '/storage/' + event.params.object + '/' + event.params.objectid + '/data').once('value', function (data) {
-        const date = new Date();
-        admin.database().ref('_events/' + uuidV1()).set({
-            'date': date.getTime(),
-            'object': event.params.object,
-            'objectid': event.params.objectid,
-            'userid': event.params.userid,
-            'function': 'saveObject'
-        });
+        admin.database().ref('user/' + event.params.userid + '/storage/' + event.params.object + '/' + event.params.objectid + '/data').once('value', function (data) {
+            const date = new Date();
+            admin.database().ref('_events/' + uuidV1()).set({
+                'date': date.getTime(),
+                'object': event.params.object,
+                'objectid': event.params.objectid,
+                'userid': event.params.userid,
+                'function': 'saveObject',
+                'source': 'database'
+            });
 
-    });
-}
+        });
+    }
 
 });
 
+
+/**
+ * Emit event "fetchObject" on firebase firestore
+ *
+ */
+exports.fetchObjectFirestore = functions.firestore.document('user/{userid}/storage/{object}/{objectid}/version').onWrite(event => {
+    const date = new Date();
+
+    admin.database().ref('_events/' + uuidV1()).set({
+        'date': date.getTime(),
+        'object': event.params.object,
+        'objectid': event.params.objectid,
+        'userid': event.params.userid,
+        'function': 'fetchObject',
+        'source': 'firestore'
+    });
+
+});
+
+
+/**
+ * Emmit event "saveObject" on firebase firestore
+ *
+ */
+exports.saveObjectFromFirestore = functions.firestore.document('user/{userid}/storage/{object}/{objectid}/saved').onWrite(event => {
+
+
+    const date = new Date();
+    admin.database().ref('_events/' + uuidV1()).set({
+        'date': date.getTime(),
+        'object': event.params.object,
+        'objectid': event.params.objectid,
+        'userid': event.params.userid,
+        'function': 'saveObject',
+        'source': 'firestore'
+    });
+
+
+});

@@ -62,6 +62,7 @@ class firebaseFunctionsConnector {
             databaseURL: databaseURL
         });
         this.db = this.admin.database();
+        this.firestore = this.admin.firestore();
         this.watchers = [];
         this.watch();
         return this;
@@ -95,17 +96,18 @@ class firebaseFunctionsConnector {
      *
      * @param string userid
      * @param string title
+     * @param integer time
      * @return void
      *
      */
-    error(userid, title) {
+    error(userid, title, time) {
 
         var self = this;
-        this.db.ref('user/' + userid + '/error').set(title);
+        var u = uuidv1();
+        this.db.ref('user/' + userid + '/error/' + u).set(title);
         setTimeout(function () {
-            self.db.ref('user/' + userid + '/error').remove();
-        }, 3000);
-
+            self.db.ref('user/' + userid + '/error/' + u).remove();
+        }, time ? time : 3000);
     }
 
     /**
@@ -114,16 +116,19 @@ class firebaseFunctionsConnector {
      *
      * @param string userid
      * @param string title
+     * @param integer time
      * @return void
      *
      */
-    warning(userid, title) {
+    warning(userid, title, time) {
+
 
         var self = this;
-        this.db.ref('user/' + userid + '/warning').set(title);
+        var u = uuidv1();
+        this.db.ref('user/' + userid + '/warning/' + u).set(title);
         setTimeout(function () {
-            self.db.ref('user/' + userid + '/warning').remove();
-        }, 3000);
+            self.db.ref('user/' + userid + '/warning/' + u).remove();
+        }, time ? time : 3000);
 
     }
 
@@ -140,6 +145,7 @@ class firebaseFunctionsConnector {
          * watch for events and connect signal slots
          */
         var db = this.admin.database();
+        var firestore = this.admin.firestore();
         var self = this;
 
         this.db.ref("_events").on(
@@ -173,11 +179,33 @@ class firebaseFunctionsConnector {
                                 /* after promise */
                                 deferred.promise.then((data) => {
 
-                                    // set storage data
-                                    db.ref('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data/bind').set(data);
-                                    db.ref('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data/stable').set(data);
-                                    // remove finished event
-                                    db.ref('_events/' + eventId).remove();
+                                    if (e.source == 'firestore') {
+
+                                        firestore.doc('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data').set(
+                                            {
+                                                'bind': typeof data == 'string' ? {value: data} : data,
+                                                'stable': typeof data == 'string' ? {value: data} : data
+                                            }
+                                        ).then(() => {
+                                            // Document created successfully.
+                                            // remove finished event
+                                            db.ref('_events/' + eventId).remove();
+                                        });
+
+                                    } else {
+
+                                        // set storage data
+                                        db.ref('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data/bind').set(data);
+                                        db.ref('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data/stable').set(data);
+                                        // remove finished event
+                                        db.ref('_events/' + eventId).remove();
+
+                                    }
+
+
+
+
+
                                 }).catch((err) => {
                                     // remove in error event
                                     console.log(err);
@@ -188,28 +216,65 @@ class firebaseFunctionsConnector {
                             case 'saveObject':
 
 
-                                /* Signal slog "saveObject" */
-                                db.ref('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data').once('value', function (data) {
-                                    watcher.callback({
-                                            userId: e.userid,
-                                            object: e.object,
-                                            objectId: e.objectid,
-                                            eventId: 0,
-                                            data: data.val()
-                                        },
-                                        deferred);
-                                });
+                                if (e.source == 'firestore') {
 
-                                /* after promise */
-                                deferred.promise.then((data) => {
-                                    // reset storage data
-                                    db.ref('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/saved').remove();
-                                    // remove finished event
-                                    db.ref('_events/' + eventId).remove();
-                                }).catch((err) => {
-                                    // error event
-                                    console.log(err);
-                                });
+
+                                    firestore.doc('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data').get().then((doc) => {
+                                      watcher.callback({
+                                                userId: e.userid,
+                                                object: e.object,
+                                                objectId: e.objectid,
+                                                eventId: 0,
+                                                data: doc.data()
+                                            },
+                                            deferred);
+                                    });
+
+
+                                    /* after promise */
+                                    deferred.promise.then((data) => {
+                                        // reset storage data
+
+                                        firestore.doc('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/saved').set({}).then(() => {
+                                            // Document deleted successfully.
+                                        });
+
+                                        // remove finished event
+                                        db.ref('_events/' + eventId).remove();
+
+                                    }).catch((err) => {
+                                        // error event
+                                        console.log(err);
+                                    });
+
+
+                                } else {
+
+                                    /* Signal slog "saveObject" */
+                                    db.ref('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data').once('value', function (data) {
+                                        watcher.callback({
+                                                userId: e.userid,
+                                                object: e.object,
+                                                objectId: e.objectid,
+                                                eventId: 0,
+                                                data: data.val()
+                                            },
+                                            deferred);
+                                    });
+
+                                    /* after promise */
+                                    deferred.promise.then((data) => {
+                                        // reset storage data
+                                        db.ref('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/saved').remove();
+                                        // remove finished event
+                                        db.ref('_events/' + eventId).remove();
+                                    }).catch((err) => {
+                                        // error event
+                                        console.log(err);
+                                    });
+
+
+                                }
 
 
                                 break;
@@ -261,7 +326,7 @@ function Deferred() {
     if (typeof(Promise) != 'undefined' && Promise.defer) {
         //need import of Promise.jsm for example: Cu.import('resource:/gree/modules/Promise.jsm');
         return new Deferred();
-    } else if (typeof(PromiseUtils) != 'undefined'  && PromiseUtils.defer) {
+    } else if (typeof(PromiseUtils) != 'undefined' && PromiseUtils.defer) {
         //need import of PromiseUtils.jsm for example: Cu.import('resource:/gree/modules/PromiseUtils.jsm');
         return PromiseUtils.defer();
     } else {
@@ -286,7 +351,7 @@ function Deferred() {
         /* A newly created Pomise object.
          * Initially in pending state.
          */
-        this.promise = new Promise(function(resolve, reject) {
+        this.promise = new Promise(function (resolve, reject) {
             this.resolve = resolve;
             this.reject = reject;
         }.bind(this));
