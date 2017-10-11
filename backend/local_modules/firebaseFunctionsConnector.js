@@ -190,14 +190,17 @@ class firebaseFunctionsConnector {
 
                                     /* after promise */
                                     deferred.promise.then((data) => {
-                                        // reset storage data
-
-                                        firestore.doc('session/' + e.user + '/' + e.project + '/' + e.object + '/' + e.objectid + '/_action/'+e.action).delete().then(() => {
-                                            // Document deleted successfully.
-                                        });
-
+                                        // Document created successfully.
                                         // remove finished event
                                         db.ref('_events/' + eventId).remove();
+
+                                        firestore.doc('session/' + e.user + '/' + e.project + '/' + e.object + '/' + e.objectid + '/_action/'+e.action + '/' + e.actionId).delete().then(() => {
+                                            // Document deleted successfully.
+                                        }).catch((err) => {
+                                            // remove in error event
+                                            console.log(err);
+                                        });
+
 
                                     }).catch((err) => {
                                         // error event
