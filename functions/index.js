@@ -42,14 +42,19 @@ admin.initializeApp(functions.config().firebase);
 exports.fetchObjectFromDatabase = functions.database.ref('user/{userid}/storage/{object}/{objectid}/version').onWrite(event => {
     const date = new Date();
 
-    admin.database().ref('_events/' + uuidV1()).set({
+    return admin.database().ref('_events/' + uuidV1()).set({
         'date': date.getTime(),
         'object': event.params.object,
         'objectid': event.params.objectid,
         'userid': event.params.userid,
         'function': 'fetchObject',
         'source': 'database'
+    }).then(function () {
+        return true;
+    }).catch(function (error) {
+        return error;
     });
+
 
 });
 
@@ -60,7 +65,7 @@ exports.fetchObjectFromDatabase = functions.database.ref('user/{userid}/storage/
 exports.saveObjectFromDatabase = functions.database.ref('user/{userid}/storage/{object}/{objectid}/saved').onWrite(event => {
 
     if (event.data.val()) {
-        admin.database().ref('user/' + event.params.userid + '/storage/' + event.params.object + '/' + event.params.objectid + '/data').once('value', function (data) {
+        return admin.database().ref('user/' + event.params.userid + '/storage/' + event.params.object + '/' + event.params.objectid + '/data').once('value', function (data) {
             const date = new Date();
             admin.database().ref('_events/' + uuidV1()).set({
                 'date': date.getTime(),
@@ -69,9 +74,16 @@ exports.saveObjectFromDatabase = functions.database.ref('user/{userid}/storage/{
                 'userid': event.params.userid,
                 'function': 'saveObject',
                 'source': 'database'
+            }).then(function () {
+                return true;
+            }).catch(function (error) {
+                return error;
             });
 
+
         });
+    } else {
+        return false;
     }
 
 });
@@ -84,14 +96,19 @@ exports.saveObjectFromDatabase = functions.database.ref('user/{userid}/storage/{
 exports.fetchObjectFromFirestore = functions.firestore.document('user/{userid}/storage/{object}/{objectid}/version').onWrite(event => {
     const date = new Date();
 
-    admin.database().ref('_events/' + uuidV1()).set({
+    return admin.database().ref('_events/' + uuidV1()).set({
         'date': date.getTime(),
         'object': event.params.object,
         'objectid': event.params.objectid,
         'userid': event.params.userid,
         'function': 'fetchObject',
         'source': 'firestore'
+    }).then(function () {
+        return true;
+    }).catch(function (error) {
+        return error;
     });
+
 
 });
 
@@ -104,14 +121,21 @@ exports.saveObjectFromFirestore = functions.firestore.document('user/{userid}/st
 
     if (event.data && event.data.data() && Object.keys(event.data.data()).length) {
         const date = new Date();
-        admin.database().ref('_events/' + uuidV1()).set({
+        return admin.database().ref('_events/' + uuidV1()).set({
             'date': date.getTime(),
             'object': event.params.object,
             'objectid': event.params.objectid,
             'userid': event.params.userid,
             'function': 'saveObject',
             'source': 'firestore'
+        }).then(function () {
+            return true;
+        }).catch(function (error) {
+            return error;
         });
+
+    } else {
+        return false;
     }
 
 
