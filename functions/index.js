@@ -5,7 +5,8 @@
  *
  * firebase database structure
  *
- * - user
+ * - session
+ * --- {userid}
  * --- {userid}
  * ----- storage
  * ------ {object} business objects
@@ -36,97 +37,45 @@ const uuidV1 = require('uuid/v1');
 admin.initializeApp(functions.config().firebase);
 
 /**
- * Emit event "fetchObject" on firebase database
+ * Connects database
  *
  */
-exports.fetchObjectFromDatabase = functions.database.ref('user/{userid}/storage/{object}/{objectid}/version').onWrite(event => {
-    const date = new Date();
+exports.connectRealtimeDatabase = functions.database.ref('session/{user}/{project}/{object}/{objectid}/_action/{action}').onCreate(event => {
+        const date = new Date();
 
-    return admin.database().ref('_events/' + uuidV1()).set({
-        'date': date.getTime(),
-        'object': event.params.object,
-        'objectid': event.params.objectid,
-        'userid': event.params.userid,
-        'function': 'fetchObject',
-        'source': 'database'
-    }).then(function () {
-        return true;
-    }).catch(function (error) {
-        return error;
-    });
-
-
-});
-
-/**
- * Emmit event "saveObject" on firebase database
- *
- */
-exports.saveObjectFromDatabase = functions.database.ref('user/{userid}/storage/{object}/{objectid}/saved').onWrite(event => {
-
-    if (event.data.val()) {
-        return admin.database().ref('user/' + event.params.userid + '/storage/' + event.params.object + '/' + event.params.objectid + '/data').once('value', function (data) {
-            const date = new Date();
-            admin.database().ref('_events/' + uuidV1()).set({
-                'date': date.getTime(),
-                'object': event.params.object,
-                'objectid': event.params.objectid,
-                'userid': event.params.userid,
-                'function': 'saveObject',
-                'source': 'database'
-            }).then(function () {
-                return true;
-            }).catch(function (error) {
-                return error;
-            });
-
-
+        return admin.database().ref('_events/' + uuidV1()).set({
+            'date': date.getTime(),
+            'project': event.params.project,
+            'object': event.params.object,
+            'objectid': event.params.objectid,
+            'user': event.params.user,
+            'action': event.params.action,
+            'source': 'database'
+        }).then(function () {
+            return true;
+        }).catch(function (error) {
+            return error;
         });
-    } else {
-        return false;
-    }
 
 });
 
 
-/**
- * Emit event "fetchObject" on firebase firestore
- *
- */
-exports.fetchObjectFromFirestore = functions.firestore.document('user/{userid}/storage/{object}/{objectid}/version').onWrite(event => {
-    const date = new Date();
-
-    return admin.database().ref('_events/' + uuidV1()).set({
-        'date': date.getTime(),
-        'object': event.params.object,
-        'objectid': event.params.objectid,
-        'userid': event.params.userid,
-        'function': 'fetchObject',
-        'source': 'firestore'
-    }).then(function () {
-        return true;
-    }).catch(function (error) {
-        return error;
-    });
-
-
-});
-
 
 /**
- * Emmit event "saveObject" on firebase firestore
+ * Connects firestore
  *
  */
-exports.saveObjectFromFirestore = functions.firestore.document('user/{userid}/storage/{object}/{objectid}/saved').onWrite(event => {
-
-    if (event.data && event.data.data() && Object.keys(event.data.data()).length) {
+exports.connectCloudFirestore = functions.firestore.document('session/{user}/{project}/{object}/{objectid}/_action/{action}/{actionId}').onCreate(event => {
+console.log(event);
         const date = new Date();
         return admin.database().ref('_events/' + uuidV1()).set({
             'date': date.getTime(),
+            'project': event.params.project,
             'object': event.params.object,
             'objectid': event.params.objectid,
-            'userid': event.params.userid,
-            'function': 'saveObject',
+            'user': event.params.user,
+            'action': event.params.action,
+            'actionId': event.params.actionId,
             'source': 'firestore'
         }).then(function () {
             return true;
@@ -134,9 +83,6 @@ exports.saveObjectFromFirestore = functions.firestore.document('user/{userid}/st
             return error;
         });
 
-    } else {
-        return false;
-    }
 
 
 });

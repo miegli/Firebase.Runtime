@@ -157,74 +157,31 @@ class firebaseFunctionsConnector {
 
                 self.watchers.forEach(function (watcher) {
 
-                    if (e.function == watcher.event && e.object == watcher.object) {
+                    if (
+                        (e.object === watcher.object || watcher.object === null) &&
+                        (e.project === watcher.project || watcher.project === null) &&
+                        (e.source === watcher.source || watcher.source === null) &&
+                        (e.action === watcher.action || watcher.action === null)
+                    ) {
 
                         var deferred = new Deferred();
 
 
-                        switch (e.function) {
+                        switch (e.action) {
 
-                            case 'fetchObject':
-
-                                /* Signal slot "fetchObject */
-                                watcher.callback({
-                                        userId: e.userid,
-                                        object: e.object,
-                                        objectId: e.objectid,
-                                        eventId: eventId
-                                    },
-                                    deferred
-                                );
-
-                                /* after promise */
-                                deferred.promise.then((data) => {
-
-                                    if (e.source == 'firestore') {
-
-                                        firestore.doc('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data').set(
-                                            {
-                                                'bind': typeof data == 'string' ? {value: data} : data,
-                                                'stable': typeof data == 'string' ? {value: data} : data
-                                            }
-                                        ).then(() => {
-                                            // Document created successfully.
-                                            // remove finished event
-                                            db.ref('_events/' + eventId).remove();
-                                        });
-
-                                    } else {
-
-                                        // set storage data
-                                        db.ref('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data/bind').set(data);
-                                        db.ref('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data/stable').set(data);
-                                        // remove finished event
-                                        db.ref('_events/' + eventId).remove();
-
-                                    }
-
-
-
-
-
-                                }).catch((err) => {
-                                    // remove in error event
-                                    console.log(err);
-                                });
-
-                                break;
-
-                            case 'saveObject':
-
+                            case 'write':
 
                                 if (e.source == 'firestore') {
 
-
-                                    firestore.doc('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data').get().then((doc) => {
-                                      watcher.callback({
-                                                userId: e.userid,
+                                    firestore.doc('session/' + e.user + '/' + e.project + '/' + e.object + '/' + e.objectid + '/data').get().then((doc) => {
+                                        watcher.callback({
+                                                user: e.user,
                                                 object: e.object,
                                                 objectId: e.objectid,
-                                                eventId: 0,
+                                                project: e.project,
+                                                action: e.action,
+                                                source: e.source,
+                                                eventId: null,
                                                 data: doc.data()
                                             },
                                             deferred);
@@ -235,7 +192,7 @@ class firebaseFunctionsConnector {
                                     deferred.promise.then((data) => {
                                         // reset storage data
 
-                                        firestore.doc('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/saved').set({}).then(() => {
+                                        firestore.doc('session/' + e.user + '/' + e.project + '/' + e.object + '/' + e.objectid + '/_action/'+e.action).delete().then(() => {
                                             // Document deleted successfully.
                                         });
 
@@ -250,13 +207,16 @@ class firebaseFunctionsConnector {
 
                                 } else {
 
-                                    /* Signal slog "saveObject" */
-                                    db.ref('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/data').once('value', function (data) {
+                                    /* Signal slog "write" */
+                                    db.ref('session/' + e.user + '/' + e.project + '/' + e.object + '/' + e.objectid + '/data').once('value', function (data) {
                                         watcher.callback({
-                                                userId: e.userid,
+                                                user: e.user,
                                                 object: e.object,
                                                 objectId: e.objectid,
-                                                eventId: 0,
+                                                project: e.project,
+                                                action: e.action,
+                                                source: e.source,
+                                                eventId: null,
                                                 data: data.val()
                                             },
                                             deferred);
@@ -265,7 +225,7 @@ class firebaseFunctionsConnector {
                                     /* after promise */
                                     deferred.promise.then((data) => {
                                         // reset storage data
-                                        db.ref('user/' + e.userid + '/storage/' + e.object + '/' + e.objectid + '/saved').remove();
+                                        db.ref('session/' + e.user + '/' + e.project + '/' + e.object + '/' + e.objectid + '/_action/'+e.action).remove();
                                         // remove finished event
                                         db.ref('_events/' + eventId).remove();
                                     }).catch((err) => {
@@ -278,6 +238,73 @@ class firebaseFunctionsConnector {
 
 
                                 break;
+
+                            default:
+
+                                /* Signal slot "fetchObject */
+                                watcher.callback({
+                                        user: e.user,
+                                        object: e.object,
+                                        objectId: e.objectid,
+                                        project: e.project,
+                                        action: e.action,
+                                        source: e.source,
+                                        eventId: eventId
+                                    },
+                                    deferred
+                                );
+
+
+
+                                /* after promise */
+                                deferred.promise.then((data) => {
+
+                                    if (e.source == 'firestore') {
+
+                                        firestore.doc('session/' + e.user + '/' + e.project + '/' + e.object + '/' + e.objectid + '/data').set(
+                                            {
+                                                'bind': typeof data == 'string' ? {value: data} : data,
+                                                'stable': typeof data == 'string' ? {value: data} : data
+                                            }
+                                        ).then(() => {
+                                            // Document created successfully.
+                                            // remove finished event
+                                           db.ref('_events/' + eventId).remove();
+
+                                            firestore.doc('session/' + e.user + '/' + e.project + '/' + e.object + '/' + e.objectid + '/_action/'+e.action + '/' + e.actionId).delete().then(() => {
+                                                // Document deleted successfully.
+                                            }).catch((err) => {
+                                                // remove in error event
+                                                console.log(err);
+                                            });
+
+
+
+                                        });
+
+                                    } else {
+
+                                        // set storage data
+                                        db.ref('session/' + e.user + '/' + e.project + '/' + e.object + '/' + e.objectid + '/data').set({
+                                            'bind': typeof data == 'string' ? {value: data} : data,
+                                            'stable': typeof data == 'string' ? {value: data} : data
+                                        });
+
+                                        // remove finished event
+                                        db.ref('_events/' + eventId).remove();
+                                        db.ref('session/' + e.user + '/' + e.project + '/' + e.object + '/' + e.objectid + '/_action/'+e.action).remove();
+
+                                    }
+
+
+                                }).catch((err) => {
+                                    // remove in error event
+                                    console.log(err);
+                                });
+
+                                break;
+
+
                         }
                     }
 
@@ -292,21 +319,53 @@ class firebaseFunctionsConnector {
 
     /**
      * watch events
-     * @param string object
+     * @param object params
      * @param function callback function (data,deferred)
      */
-    onLoad(object, callback) {
-        this.watchers.push({object: object, event: 'fetchObject', callback: callback});
+    on(params, callback) {
+
+        this.watchers.push(
+            {
+                object: params.object !== undefined ? params.object : null,
+                action: params.action !== undefined ? params.action : null,
+                project: params.project !== undefined ? params.project : null,
+                source: params.source !== undefined ? params.source : null,
+                callback: callback
+            }
+        );
+
         return this;
     }
 
     /**
-     * watch events
+     * watch read events
      * @param string object
      * @param function callback function (data,deferred)
      */
-    onSave(object, callback) {
-        this.watchers.push({object: object, event: 'saveObject', callback: callback});
+    read(object, project, callback) {
+        this.watchers.push({
+            object: object,
+            action: 'read',
+            project: project,
+            source: null,
+            callback: callback
+        });
+        return this;
+    }
+
+    /**
+     * watch read events
+     * @param string object
+     * @param function callback function (data,deferred)
+     */
+    write(object, project, callback) {
+        this.watchers.push({
+            object: object,
+            action: 'write',
+            project: project,
+            source: null,
+            callback: callback
+        });
         return this;
     }
 
